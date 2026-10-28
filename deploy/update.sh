@@ -8,4 +8,9 @@ source /etc/freshoil.conf   # DOMAIN=..., записывается при setup.
 
 git -C "$REPO_DIR" pull --ff-only
 bash "$REPO_DIR/deploy/publish.sh" "$DOMAIN"
+if [[ -f /etc/systemd/system/freshoil-mailer.service ]]; then
+  cp "$REPO_DIR/deploy/mailer/nginx-api.conf" /etc/nginx/snippets/freshoil-api.conf
+  systemctl restart freshoil-mailer
+  nginx -t 2>/dev/null && systemctl reload nginx
+fi
 echo "✓ Сайт https://$DOMAIN обновлён"

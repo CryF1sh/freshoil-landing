@@ -231,7 +231,13 @@
     width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;
     font-family:var(--ff-body);font-size:15px;color:var(--text);background:#fff;transition:border-color .2s;
   }
-  .field input:focus{outline:none;border-color:var(--green);}
+  .field textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;min-height:96px;resize:vertical;
+    font-family:var(--ff-body);font-size:15px;color:var(--text);background:#fff;transition:border-color .2s;line-height:1.5;
+  }
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--green);}
+  .field-optional{font-weight:400;color:var(--text-soft);}
+  .hp-field{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;}
   .field-error{color:#c0392b;font-size:12.5px;margin-top:5px;display:none;}
   .field.invalid input{border-color:#c0392b;}
   .field.invalid .field-error{display:block;}
@@ -269,6 +275,10 @@
   .form-note{font-size:12.5px;color:var(--text-soft);margin-top:10px;line-height:1.5;}
 
   .submit-btn{width:100%;margin-top:20px;font-size:16px;padding:15px;}
+  .submit-btn:disabled{opacity:.65;cursor:wait;transform:none;}
+  .form-error{display:none;margin-top:14px;background:#fdecea;border:1px solid #f5c6c0;color:#a5281b;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5;}
+  .form-error.show{display:block;}
+  .form-error a{color:#a5281b;font-weight:600;}
 
   /* ============ FOOTER ============ */
   footer{background:var(--green-dark);color:#eaf3ea;padding:56px 0 30px;}
@@ -304,11 +314,6 @@
   .modal-box h4{font-size:19px;color:var(--green-dark);margin-bottom:10px;}
   .modal-box p{font-size:14.5px;color:var(--text-soft);margin-bottom:22px;}
   .modal-box button{background:var(--green);color:#fff;border:none;padding:11px 26px;border-radius:999px;font-weight:600;cursor:pointer;font-family:var(--ff-body);}
-  .modal-box .modal-fallback{font-size:13px;background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
-  .modal-box .modal-fallback a{color:var(--green);font-weight:600;}
-  .modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-  .modal-box .modal-copy{background:#fff;color:var(--green-dark);border:1.5px solid var(--line);}
-  .modal-box .modal-copy:hover{border-color:var(--green);}
 
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important;transition:none !important;}
@@ -496,6 +501,14 @@
           <input type="email" id="email" name="email" autocomplete="email" placeholder="you@company.com">
           <div class="field-error">Введите корректный email.</div>
         </div>
+        <div class="field">
+          <label for="comment">Комментарий <span class="field-optional">(необязательно)</span></label>
+          <textarea id="comment" name="comment" maxlength="2000" placeholder="Город доставки, объём партии, удобное время для звонка…"></textarea>
+        </div>
+        <div class="hp-field" aria-hidden="true">
+          <label for="website">Не заполняйте это поле</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </div>
       </div>
 
       <div>
@@ -542,7 +555,8 @@
         </div>
 
         <button type="submit" class="btn btn-primary submit-btn">Отправить заявку</button>
-        <p class="form-note">После отправки откроется ваш почтовый клиент с готовым письмом-таблицей на <strong>freshmetka@gmail.com</strong> — останется только нажать «Отправить».</p>
+        <div class="form-error" id="formError" role="alert"></div>
+        <p class="form-note">Нажимая «Отправить заявку», вы соглашаетесь на обработку указанных данных. Мы используем их только для связи по вашей заявке.</p>
       </div>
     </form>
   </div>
@@ -583,11 +597,7 @@
     <div class="check">✓</div>
     <h4>Заявка принята</h4>
     <p id="modalText"></p>
-    <p class="modal-fallback">Письмо не открылось? Скопируйте заявку и отправьте её на <a href="mailto:freshmetka@gmail.com">freshmetka@gmail.com</a> или позвоните <a href="tel:+375336357286">+375 33 635 72 86</a>.</p>
-    <div class="modal-actions">
-      <button type="button" class="modal-copy" id="copyOrderBtn">Скопировать заявку</button>
-      <button type="button" onclick="closeModal()">Хорошо</button>
-    </div>
+    <button type="button" onclick="closeModal()">Хорошо</button>
   </div>
 </div>
 
@@ -692,61 +702,36 @@ function validPhone(v){
   return (v.match(/\d/g) || []).length >= 9;
 }
 
-/* ============ EMAIL (mailto with a plain-text table) ============ */
-// A static page can't send email silently on its own — this opens the visitor's
-// mail client with a ready-made message addressed to freshmetka@gmail.com.
-const SALES_EMAIL = 'freshmetka@gmail.com';
-
-function buildOrderEmailBody({name, phone, email, n4, n18, sub4, sub18, total, wantsSample}){
-  const rows = [];
-  rows.push(['Набор', 'Кол-во', 'Цена/шт', 'Сумма']);
-  if (n4 > 0)  rows.push(['FreshOil 4',  String(n4),  '55 BYN',  sub4 + ' BYN']);
-  if (n18 > 0) rows.push(['FreshOil 18', String(n18), '199 BYN', sub18 + ' BYN']);
-  if (wantsSample) rows.push(['Бесплатный образец', '1', '0 BYN', '0 BYN']);
-
-  const widths = [0,1,2,3].map(i => Math.max(...rows.map(r => r[i].length)));
-  const pad = (s, w) => s + ' '.repeat(w - s.length);
-  const line = rows.map(r => r.map((c,i) => pad(c, widths[i])).join('  |  ')).join('\n');
-  const sep = widths.map(w => '-'.repeat(w)).join('--+--');
-
-  return (
-`Новая заявка с сайта FreshOil
-
-Имя:      ${name}
-Телефон:  ${phone}
-Email:    ${email}
-
-${rows[0].map((c,i)=>pad(c,widths[i])).join('  |  ')}
-${sep}
-${rows.slice(1).map(r => r.map((c,i)=>pad(c,widths[i])).join('  |  ')).join('\n')}
-
-ИТОГО: ${total} BYN`
-  );
-}
-
-function openMailto(subject, body){
-  const url = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = url;
-}
-
+/* ============ FREE SAMPLE (footer button) ============ */
 function requestSample(){
-  const body =
-`Запрос бесплатного образца FreshOil
-
-Имя:     (укажите ваше имя)
-Телефон: (укажите телефон)
-
-Прошу выслать бесплатный образец для тестирования.`;
-  openMailto('Запрос образца FreshOil', body);
+  sampleCheck.checked = true;
+  updateSummary();
+  document.getElementById('order').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => document.getElementById('name').focus({ preventScroll: true }), 600);
 }
 
-/* ============ SUBMIT ============ */
-document.getElementById('orderForm').addEventListener('submit', function(e){
+/* ============ SUBMIT (sent to the server, which emails the order) ============ */
+const ORDER_URL = '/api/order';
+const formError = document.getElementById('formError');
+const submitBtn = document.querySelector('.submit-btn');
+
+function showFormError(message){
+  formError.innerHTML = '';
+  formError.append(message + ' Попробуйте ещё раз или свяжитесь с нами напрямую: ');
+  const tel = document.createElement('a'); tel.href = 'tel:+375336357286'; tel.textContent = '+375 33 635 72 86';
+  const mail = document.createElement('a'); mail.href = 'mailto:freshmetka@gmail.com'; mail.textContent = 'freshmetka@gmail.com';
+  formError.append(tel, ', ', mail, '.');
+  formError.classList.add('show');
+}
+
+document.getElementById('orderForm').addEventListener('submit', async function(e){
   e.preventDefault();
+  formError.classList.remove('show');
 
   const name = document.getElementById('name').value.trim();
   const phone = document.getElementById('phone').value.trim();
   const email = document.getElementById('email').value.trim();
+  const comment = document.getElementById('comment').value.trim();
   const n4 = readQty(qty4), n18 = readQty(qty18);
   const wantsSample = sampleCheck.checked;
 
@@ -758,48 +743,43 @@ document.getElementById('orderForm').addEventListener('submit', function(e){
     ok = false;
     alert('Выберите хотя бы один набор (количество больше 0) или отметьте бесплатный образец.');
   }
-
   if (!ok) return;
 
-  const sub4 = n4 * KITS['4'].price;
-  const sub18 = n18 * KITS['18'].price;
-  const total = sub4 + sub18;
-
+  const total = n4 * KITS['4'].price + n18 * KITS['18'].price;
   const kitsText = [
     n4  > 0 ? `FreshOil 4 × ${n4}`  : null,
     n18 > 0 ? `FreshOil 18 × ${n18}` : null,
     wantsSample ? 'бесплатный образец' : null
   ].filter(Boolean).join(' и ');
 
-  document.getElementById('modalText').textContent =
-    `Спасибо, ${name}! Ваша заявка (${kitsText}) на сумму ${total} BYN принята. Сейчас откроется письмо на ${SALES_EMAIL} — отправьте его, и мы свяжемся с вами по телефону ${phone}.`;
-  document.getElementById('modalOverlay').classList.add('show');
-
-  lastOrderText = buildOrderEmailBody({name, phone, email, n4, n18, sub4, sub18, total, wantsSample});
-  openMailto('Новая заявка FreshOil', lastOrderText);
-
-  // Reset form (simulate submission)
-  this.reset();
-  qty4.value = 1; qty18.value = 0;
-  sampleCheck.checked = false;
-  updateSummary();
-});
-
-/* ============ COPY FALLBACK (if no mail client is configured) ============ */
-let lastOrderText = '';
-document.getElementById('copyOrderBtn').addEventListener('click', async function(){
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Отправляем…';
   try {
-    await navigator.clipboard.writeText(lastOrderText);
+    const res = await fetch(ORDER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name, phone, email, comment, n4, n18, sample: wantsSample,
+        website: document.getElementById('website').value
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить заявку.');
+
+    document.getElementById('modalText').textContent =
+      `Спасибо, ${name}! Ваша заявка (${kitsText}) на сумму ${total} BYN отправлена. Мы свяжемся с вами по телефону ${phone} в ближайшее время.`;
+    document.getElementById('modalOverlay').classList.add('show');
+
+    this.reset();
+    qty4.value = 1; qty18.value = 0;
+    sampleCheck.checked = false;
+    updateSummary();
   } catch (err) {
-    const ta = document.createElement('textarea');
-    ta.value = lastOrderText;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
+    showFormError(err.message === 'Failed to fetch' ? 'Нет связи с сервером.' : err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Отправить заявку';
   }
-  this.textContent = 'Скопировано ✓';
-  setTimeout(() => { this.textContent = 'Скопировать заявку'; }, 2000);
 });
 
 function closeModal(){
