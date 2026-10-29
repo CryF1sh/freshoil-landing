@@ -53,6 +53,8 @@ echo "==> 5/5 Получаю HTTPS-сертификат"
 CERT_ARGS=(-d "$DOMAIN")
 [[ -n "$WWW_IP" ]] && CERT_ARGS+=(-d "www.$DOMAIN")
 certbot --nginx "${CERT_ARGS[@]}" -m "$EMAIL" --agree-tos -n --redirect
+bash "$REPO_DIR/deploy/install-snippets.sh" "$DOMAIN"
+bash "$REPO_DIR/deploy/indexnow.sh" "$DOMAIN" || true
 
 echo
 echo "✓ Готово! Сайт доступен: https://$DOMAIN"

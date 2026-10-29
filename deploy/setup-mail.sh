@@ -5,14 +5,11 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="/etc/freshoil-mailer.env"
-SNIPPET="/etc/nginx/snippets/freshoil-api.conf"
-INCLUDE_LINE="include /etc/nginx/snippets/freshoil-*.conf;"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Запустите через sudo"; exit 1
 fi
 source /etc/freshoil.conf   # DOMAIN=..., записывается при setup.sh
-CONF="/etc/nginx/sites-available/${DOMAIN}"
 
 echo "==> 1/4 Настройки почты"
 if [[ -f "$ENV_FILE" ]]; then
@@ -49,18 +46,7 @@ sleep 1
 systemctl is-active --quiet freshoil-mailer || { journalctl -u freshoil-mailer -n 20 --no-pager; exit 1; }
 
 echo "==> 4/4 Подключаю /api/order в nginx"
-mkdir -p /etc/nginx/snippets
-cp "$REPO_DIR/deploy/mailer/nginx-api.conf" "$SNIPPET"
-if ! grep -qF "$INCLUDE_LINE" "$CONF"; then
-  cp "$CONF" "$CONF.bak"
-  # Вставляем include после строки root в блоке сайта (certbot оставляет её одну)
-  sed -i "/^\s*root \/var\/www\/${DOMAIN};/a\\    ${INCLUDE_LINE}" "$CONF"
-fi
-if ! nginx -t 2>/dev/null; then
-  [[ -f "$CONF.bak" ]] && cp "$CONF.bak" "$CONF"
-  nginx -t; exit 1
-fi
-systemctl reload nginx
+bash "$REPO_DIR/deploy/install-snippets.sh" "$DOMAIN"
 
 echo
 echo "✓ Готово! Заявки с https://${DOMAIN} будут приходить на $(grep ^MAIL_TO "$ENV_FILE" | cut -d= -f2)"

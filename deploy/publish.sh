@@ -12,7 +12,9 @@ rsync -a --delete \
   --exclude '.git' --exclude 'deploy' --exclude 'README.md' --exclude '.gitignore' \
   "$REPO_DIR"/ "$WEBROOT"/
 
-sed -i "s/__DOMAIN__/${DOMAIN}/g" "$WEBROOT/robots.txt" "$WEBROOT/sitemap.xml"
+LASTMOD="$(git -C "$REPO_DIR" log -1 --format=%cs 2>/dev/null || date +%F)"
+sed -i -e "s/__DOMAIN__/${DOMAIN}/g" -e "s/__LASTMOD__/${LASTMOD}/g" \
+  "$WEBROOT/robots.txt" "$WEBROOT/sitemap.xml" "$WEBROOT/llms.txt"
 
 chown -R www-data:www-data "$WEBROOT"
 find "$WEBROOT" -type d -exec chmod 755 {} +

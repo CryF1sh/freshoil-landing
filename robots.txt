@@ -1,4 +1,34 @@
+# Сайт открыт для всех поисковых систем и ИИ-ассистентов
 User-agent: *
 Allow: /
+Disallow: /api/
+
+# Поисковые системы
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+
+# ИИ-ассистенты (ChatGPT, Claude, Perplexity, Gemini и др.)
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: YandexAdditional
+Allow: /
+Disallow: /api/
 
 Sitemap: https://__DOMAIN__/sitemap.xml
